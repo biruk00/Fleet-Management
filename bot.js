@@ -161,12 +161,11 @@ bot.onText(/\/all/, async (msg) => {
 
     const date = new Date();
     const dateString = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const currentMonth = date.getMonth();
-    const currentYear = date.getFullYear();
     const dayOfMonth = date.getDate();
     const timeGreeting = date.getHours() < 12 ? 'Morning' : 'Afternoon';
     const timeDisplay = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+    // HELPER: Returns "DD/Mon" e.g. "8/Mar" for when the truck entered its current status
     const getStatusDay = (t) => {
       const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
       let earliestStreakDate = null;
@@ -179,28 +178,10 @@ bot.onText(/\/all/, async (msg) => {
           }
         }
       }
-      return earliestStreakDate ? new Date(earliestStreakDate).getDate() : dayOfMonth;
-    };
-
-    const getGarageDay = (t) => {
-      const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
-      let earliestStreakDate = null;
-      if (plateHistory.length > 0) {
-        for (let i = 0; i < plateHistory.length; i++) {
-          if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
-            earliestStreakDate = plateHistory[i].changed_at;
-          } else {
-            break;
-          }
-        }
-      }
-      if (!earliestStreakDate) return `${dayOfMonth}`;
-      const d = new Date(earliestStreakDate);
-      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-        return `${d.getDate()}`;
-      }
-      const monthName = d.toLocaleString('en-US', { month: 'long' });
-      return `${monthName} ${d.getDate()}`;
+      const d = earliestStreakDate ? new Date(earliestStreakDate) : date;
+      const day = d.getDate();
+      const mon = d.toLocaleString('en-US', { month: 'short' });
+      return `${day}/${mon}`;
     };
 
     const getCat = (t, cat) => (t.category || '').toLowerCase() === cat.toLowerCase();
@@ -371,7 +352,7 @@ bot.onText(/\/all/, async (msg) => {
     report += `===========================\n`;
     report += `GARAGE (${garageTrucks.length})\n`;
     if (garageTrucks.length > 0) {
-      garageTrucks.forEach(t => report += `${t.plate_no} = (Arrived ${getGarageDay(t)})\n`);
+      garageTrucks.forEach(t => report += `${t.plate_no} = (Arrived ${getStatusDay(t)})\n`);
     }
     report += `\n`;
 
