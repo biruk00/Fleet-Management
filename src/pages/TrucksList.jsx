@@ -102,7 +102,7 @@ export default function TrucksList() {
   const exportToTextReport = async () => {
     if (trucks.length === 0) return;
 
-    // 1. Fetch history to figure out real status change dates (No SQL changes needed)
+    // 1. Fetch history to figure out real status change dates
     let historyRecords = [];
     try {
       const { data } = await supabase
@@ -116,39 +116,59 @@ export default function TrucksList() {
 
     const date = new Date();
     const dateString = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const dayOfMonth = date.getDate(); 
+    const dayOfMonth = date.getDate();
+    const currentMonth = date.getMonth();
+    const currentYear = date.getFullYear();
     const timeGreeting = date.getHours() < 12 ? 'Morning' : 'Afternoon';
     const timeDisplay = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    // 2. HELPER: Look through history to find when the current status started
+    // HELPER: Returns the day number when the truck entered its current status
     const getStatusDay = (t) => {
       const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
-      if (plateHistory.length === 0) return dayOfMonth; // Fallback if no history
-
+      if (plateHistory.length === 0) return dayOfMonth;
       let earliestStreakDate = null;
       for (let i = 0; i < plateHistory.length; i++) {
-        // As we go back in time, if the status matches, record the date
         if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
           earliestStreakDate = plateHistory[i].changed_at;
         } else {
-          // The moment we hit a different status in the past, stop looking
           break;
         }
       }
-
       return earliestStreakDate ? new Date(earliestStreakDate).getDate() : dayOfMonth;
+    };
+
+    // HELPER: Returns the full date label for garage/parked trucks.
+    // If the status date is in the current month, shows just the day.
+    // If it's in a previous month, shows "Month Day" (e.g. "December 18").
+    const getGarageDay = (t) => {
+      const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
+      if (plateHistory.length === 0) return `${dayOfMonth}`;
+      let earliestStreakDate = null;
+      for (let i = 0; i < plateHistory.length; i++) {
+        if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
+          earliestStreakDate = plateHistory[i].changed_at;
+        } else {
+          break;
+        }
+      }
+      if (!earliestStreakDate) return `${dayOfMonth}`;
+      const d = new Date(earliestStreakDate);
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        return `${d.getDate()}`;
+      }
+      const monthName = d.toLocaleString('en-US', { month: 'long' });
+      return `${monthName} ${d.getDate()}`;
     };
 
     const getCat = (t, cat) => (t.category || '').toLowerCase() === cat.toLowerCase();
     const getStat = (t, stat) => (t.status || '').toLowerCase() === stat.toLowerCase();
-    const formatNote = (note) => note ? ` ${note}` : '';
+    const formatNote = (note) => note ? ` ${note.trim()}` : '';
     const groupBy = (array, key) => array.reduce((result, item) => {
       const k = item[key] || 'Unknown';
       (result[k] = result[k] || []).push(item);
       return result;
     }, {});
 
-    // Active Trucks (Ignore Garage, Parked, Node, Insurance in totals)
     const isInactiveStatus = (status) => {
       const s = (status || '').toLowerCase();
       return ['garage', 'parked', 'insurance'].includes(s) || s.includes('node') || s.includes('no driver');
@@ -160,54 +180,47 @@ export default function TrucksList() {
     // --- DJIBOUTI SECTION ---
     const djibouti = trucks.filter(t => getCat(t, 'djibouti'));
     const djActive = djibouti.filter(isActiveTruck);
-    
-    const djCrossed = djActive.filter(t => 
-      (t.destination || '').toLowerCase() === 'djibouti' && 
+
+    const djCrossed = djActive.filter(t =>
+      (t.destination || '').toLowerCase() === 'djibouti' &&
       (t.note || '').toLowerCase().includes('galafi')
     );
-    
-    const djOngoingEmpty = djActive.filter(t => 
-      getStat(t, 'ongoing') && 
-      (t.destination || '').toLowerCase() === 'djibouti' && 
+
+    const djOngoingEmpty = djActive.filter(t =>
+      getStat(t, 'ongoing') &&
+      (t.destination || '').toLowerCase() === 'djibouti' &&
       !(t.note || '').toLowerCase().includes('galafi')
     );
 
-    const djLoadingAtDj = djActive.filter(t => 
-      getStat(t, 'loading') && 
+    const djLoadingAtDj = djActive.filter(t =>
+      getStat(t, 'loading') &&
       (t.current_location || '').toLowerCase() === 'djibouti'
     );
 
-    // Fertlizer block (all loaded/unloading/ongoing elsewhere Djibouti trucks)
-    const djOthers = djActive.filter(t => !djCrossed.includes(t) && !djOngoingEmpty.includes(t) && !djLoadingAtDj.includes(t));
+    const djOthers = djActive.filter(t =>
+      !djCrossed.includes(t) && !djOngoingEmpty.includes(t) && !djLoadingAtDj.includes(t)
+    );
 
-    report += `DJIBOUTI (${djActive.length || '-'})\n`;
-    // report += `-----\n`;
+    report += `DJIBOUTI (${djActive.length})\n`;
 
     if (djLoadingAtDj.length > 0) {
       report += `LOADING AT DJIBOUTI (${djLoadingAtDj.length})\n`;
-      // report += `-------\n`;
-      djLoadingAtDj.forEach(t => report += `${t.plate_no}${formatNote(t.note)} (${getStatusDay(t)})\n`);
-      report += `=============================\n`;
-      report += `\n`;
+      djLoadingAtDj.forEach(t => report += `${t.plate_no}${formatNote(t.note)} (Arrived ${getStatusDay(t)})\n`);
+      report += `=============================\n\n`;
     }
 
     report += `Empty Trucks Crossed to DJIBOUTI\n`;
-    report += `On ${dateString}(${djCrossed.length || '-'})\n`;
-    // report += `-------\n`;
+    report += `On ${dateString}(${djCrossed.length})\n`;
     if (djCrossed.length > 0) {
-      djCrossed.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
+      djCrossed.forEach(t => report += `${t.plate_no}\n`);
     }
+    report += `=============================\n\n`;
 
-    report += `=============================\n`;
-    report += `\n`;
-    report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length || '-'})\n`;
-    // report += `-------------------\n`;
-    // report += `============================\n`;
+    report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length})\n`;
     if (djOngoingEmpty.length > 0) {
       djOngoingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
     }
-     report += `============================\n`;
-     report += `\n`;
+    report += `============================\n\n`;
 
     if (djOthers.length > 0) {
       report += `FERTLIZER (${djOthers.length})\n`;
@@ -216,8 +229,8 @@ export default function TrucksList() {
       if (djUnload.length > 0) {
         const grouped = groupBy(djUnload, 'current_location');
         for (const [loc, trks] of Object.entries(grouped)) {
-          report += `UNLOADING ${loc !== 'Unknown' && loc ? '@ ' + loc : ''}\n`;
-          trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
+          report += `UNLOADING @ ${loc !== 'Unknown' && loc ? loc : '?'}\n`;
+          trks.forEach(t => report += `${t.plate_no}  (Arrived ${getStatusDay(t)})\n`);
           report += `\n`;
         }
       }
@@ -231,15 +244,15 @@ export default function TrucksList() {
           report += `\n`;
         }
       }
+      report += `============================\n\n`;
     }
 
     // --- BRANDS SECTION ---
-    const brands = ['Walia', 'BGI', 'Leshato', 'Habesha', 'Unilever'];
+    const brands = ['Walia', 'BGI', 'Leshato', 'Habesha', 'Afer', 'Unilever'];
     brands.forEach(brand => {
       const brandTrucks = trucks.filter(t => getCat(t, brand));
       const activeBrandTrucks = brandTrucks.filter(isActiveTruck);
 
-      // Hide category if 0 active trucks
       if (activeBrandTrucks.length === 0) return;
 
       report += `============================\n`;
@@ -249,20 +262,18 @@ export default function TrucksList() {
       if (loading.length > 0) {
         const grouped = groupBy(loading, 'current_location');
         for (const [loc, trks] of Object.entries(grouped)) {
-          report += `LOADING ${loc !== 'Unknown' && loc ? '@ ' + loc : ''}\n`;
-          trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
+          report += `LOADING @ ${loc !== 'Unknown' && loc ? loc : '?'}\n`;
+          trks.forEach(t => report += `${t.plate_no}  \n`);
         }
-        // report += `-------\n`;
         report += `\n`;
       } else {
-        report += `LOADING\n-------\n`;
-        report += `\n`;
+        report += `LOADING\n-------\n\n`;
       }
 
       const unloading = activeBrandTrucks.filter(t => getStat(t, 'unloading'));
       if (unloading.length > 0) {
         report += `UNLOADING\n`;
-        unloading.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)} (${getStatusDay(t)})\n`);
+        unloading.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)} (Arrived ${getStatusDay(t)})\n`);
         report += `\n`;
       }
 
@@ -293,32 +304,43 @@ export default function TrucksList() {
 
     // --- SPECIAL STATUSES ---
     const getSpecials = (statusName) => trucks.filter(t => getStat(t, statusName));
-    
+
     const parkedTrucks = getSpecials('parked');
     report += `===========================\n`;
-    report += `PARKED (${parkedTrucks.length || '-'})\n`;
-    // report += `----------\n`;
+    report += `PARKED (${parkedTrucks.length})\n`;
     if (parkedTrucks.length > 0) {
-      parkedTrucks.forEach(t => report += `${t.plate_no} =${formatNote(t.note)} (${getStatusDay(t)})\n`);
+      parkedTrucks.forEach(t => {
+        const note = t.note ? ` ${t.note.trim()}` : '';
+        report += `${t.plate_no} = (Arrived ${getStatusDay(t)})${note}\n`;
+      });
     }
-report += `\n`;
+    report += `\n`;
+
     const garageTrucks = getSpecials('garage');
     report += `===========================\n`;
-    report += `GARAGE (${garageTrucks.length || '-'})\n`;
+    report += `GARAGE (${garageTrucks.length})\n`;
     if (garageTrucks.length > 0) {
-      garageTrucks.forEach(t => report += `${t.plate_no} =${formatNote(t.note)} (${getStatusDay(t)})\n`);
+      garageTrucks.forEach(t => report += `${t.plate_no} = (Arrived ${getGarageDay(t)})\n`);
     }
+    report += `\n`;
 
-    const nodeTrucks = trucks.filter(t => (t.status || '').toLowerCase().includes('node') || (t.status || '').toLowerCase().includes('no driver'));
-    report += `\n=============================\n`;
-    report += `Node / No Driver (${nodeTrucks.length || '-'})\n`;
+    const nodeTrucks = trucks.filter(t =>
+      (t.status || '').toLowerCase().includes('node') ||
+      (t.status || '').toLowerCase().includes('no driver')
+    );
+    report += `=============================\n`;
+    report += `Node / No Driver (${nodeTrucks.length})\n`;
     if (nodeTrucks.length > 0) {
-      nodeTrucks.forEach(t => report += `${t.plate_no} =${formatNote(t.note)}\n`);
+      nodeTrucks.forEach(t => {
+        const label = t.note ? t.note.trim() : 'No Driver';
+        report += `${t.plate_no} = ${label}\n`;
+      });
     }
+    report += `\n`;
 
     const insuranceTrucks = getSpecials('insurance');
-    report += `\n=============================\n`;
-    report += `INSURANCE (${insuranceTrucks.length || '-'})\n`;
+    report += `=============================\n`;
+    report += `INSURANCE (${insuranceTrucks.length})\n`;
     if (insuranceTrucks.length > 0) {
       insuranceTrucks.forEach(t => report += `${t.plate_no}\n`);
     }
@@ -526,6 +548,7 @@ report += `\n`;
     { key: 'BGI', label: 'BGI', count: categoryCounts['BGI'] || 0 },
     { key: 'Leshato', label: 'LESHATO', count: categoryCounts['Leshato'] || 0 },
     { key: 'Habesha', label: 'HABESHA', count: categoryCounts['Habesha'] || 0 },
+    { key: 'Afer', label: 'AFER', count: categoryCounts['Afer'] || 0 },
     { key: 'Unilever', label: 'Unilever', count: categoryCounts['Unilever'] || 0 },
   ];
 

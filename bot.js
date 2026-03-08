@@ -161,6 +161,9 @@ bot.onText(/\/all/, async (msg) => {
 
     const date = new Date();
     const dateString = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const currentMonth = date.getMonth();
+    const currentYear = date.getFullYear();
+    const dayOfMonth = date.getDate();
     const timeGreeting = date.getHours() < 12 ? 'Morning' : 'Afternoon';
     const timeDisplay = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -176,10 +179,28 @@ bot.onText(/\/all/, async (msg) => {
           }
         }
       }
-      const d = earliestStreakDate ? new Date(earliestStreakDate) : date;
-      const day = d.getDate();
-      const monthStr = d.toLocaleString('en-US', { month: 'short' });
-      return `Arrived ${day}/${monthStr}`;
+      return earliestStreakDate ? new Date(earliestStreakDate).getDate() : dayOfMonth;
+    };
+
+    const getGarageDay = (t) => {
+      const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
+      let earliestStreakDate = null;
+      if (plateHistory.length > 0) {
+        for (let i = 0; i < plateHistory.length; i++) {
+          if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
+            earliestStreakDate = plateHistory[i].changed_at;
+          } else {
+            break;
+          }
+        }
+      }
+      if (!earliestStreakDate) return `${dayOfMonth}`;
+      const d = new Date(earliestStreakDate);
+      if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+        return `${d.getDate()}`;
+      }
+      const monthName = d.toLocaleString('en-US', { month: 'long' });
+      return `${monthName} ${d.getDate()}`;
     };
 
     const getCat = (t, cat) => (t.category || '').toLowerCase() === cat.toLowerCase();
@@ -234,48 +255,32 @@ bot.onText(/\/all/, async (msg) => {
 
       if (djLoadingAtDj.length > 0) {
         report += `LOADING AT DJIBOUTI (${djLoadingAtDj.length})\n`;
-        djLoadingAtDj.forEach(t => report += `${t.plate_no}${formatNote(t.note)} (${getStatusDay(t)})\n`);
+        djLoadingAtDj.forEach(t => report += `${t.plate_no}${formatNote(t.note)} (Arrived ${getStatusDay(t)})\n`);
         report += `=============================\n\n`;
       }
 
+      report += `Empty Trucks Crossed to DJIBOUTI\n`;
+      report += `On ${dateString}(${djCrossed.length})\n`;
       if (djCrossed.length > 0) {
-        report += `Empty Trucks Crossed to DJIBOUTI\n`;
-        report += `On ${dateString}(${djCrossed.length})\n`;
         djCrossed.forEach(t => report += `${t.plate_no}\n`);
-        report += `=============================\n\n`;
       }
+      report += `=============================\n\n`;
 
+      report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length})\n`;
       if (djOngoingEmpty.length > 0) {
-        report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length})\n`;
         djOngoingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
-        report += `============================\n\n`;
       }
-
-      if (djOncomingEmpty.length > 0) {
-        report += `ONCOMING EMPTY TRUCKS FROM DJIBOUTI (${djOncomingEmpty.length})\n`;
-        djOncomingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
-        report += `============================\n\n`;
-      }
+      report += `============================\n\n`;
 
       if (djOthers.length > 0) {
         report += `FERTLIZER (${djOthers.length})\n`;
-
-        const djLoad = djOthers.filter(t => getStat(t, 'loading'));
-        if (djLoad.length > 0) {
-          const grouped = groupBy(djLoad, 'current_location');
-          for (const [loc, trks] of Object.entries(grouped)) {
-            report += `LOADING ${loc !== 'Unknown' && loc ? '📍 ' + loc : ''}\n`;
-            trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
-          }
-          report += `\n`;
-        }
 
         const djUnload = djOthers.filter(t => getStat(t, 'unloading'));
         if (djUnload.length > 0) {
           const grouped = groupBy(djUnload, 'current_location');
           for (const [loc, trks] of Object.entries(grouped)) {
-            report += `UNLOADING ${loc !== 'Unknown' && loc ? '📍 ' + loc : ''}\n`;
-            trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
+            report += `UNLOADING @ ${loc !== 'Unknown' && loc ? loc : '?'}\n`;
+            trks.forEach(t => report += `${t.plate_no}  (Arrived ${getStatusDay(t)})\n`);
             report += `\n`;
           }
         }
@@ -289,51 +294,39 @@ bot.onText(/\/all/, async (msg) => {
             report += `\n`;
           }
         }
-
-        const djOncoming = djOthers.filter(t => getStat(t, 'oncoming'));
-        if (djOncoming.length > 0) {
-          const grouped = groupBy(djOncoming, 'destination');
-          for (const [dest, trks] of Object.entries(grouped)) {
-            report += `ONCOMING ➜ ${dest !== 'Unknown' ? dest : '?'}\n`;
-            const onByFrom = groupBy(trks, 'from_location');
-            for (const [fromLoc, fTrks] of Object.entries(onByFrom)) {
-              report += `from ${fromLoc}\n`;
-              fTrks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
-              report += `\n`;
-            }
-          }
-        }
-        report += `============================\n`;
+        report += `============================\n\n`;
       }
     }
 
     // --- BRANDS SECTION ---
-    const brands = ['Walia', 'BGI', 'Leshato', 'Habesha', 'Unilever'];
+    const brands = ['Walia', 'BGI', 'Leshato', 'Habesha', 'Afer', 'Unilever'];
     brands.forEach(brand => {
       const brandTrucks = trucks.filter(t => getCat(t, brand));
       const activeBrandTrucks = brandTrucks.filter(isActiveTruck);
 
       if (activeBrandTrucks.length === 0) return;
 
+      report += `============================\n`;
       report += `${brand.toUpperCase()} (${activeBrandTrucks.length})\n`;
 
       const loading = activeBrandTrucks.filter(t => getStat(t, 'loading'));
-      report += `LOADING\n-------\n`;
       if (loading.length > 0) {
         const grouped = groupBy(loading, 'current_location');
         for (const [loc, trks] of Object.entries(grouped)) {
-          if (loc !== 'Unknown' && loc) report += `${loc}\n`;
-          trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
+          report += `LOADING @ ${loc !== 'Unknown' && loc ? loc : '?'}\n`;
+          trks.forEach(t => report += `${t.plate_no}  \n`);
         }
+        report += `\n`;
+      } else {
+        report += `LOADING\n-------\n\n`;
       }
-      report += `\n`;
 
       const unloading = activeBrandTrucks.filter(t => getStat(t, 'unloading'));
-      report += `UNLOADING\n`;
       if (unloading.length > 0) {
-        unloading.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)} (${getStatusDay(t)})\n`);
+        report += `UNLOADING\n`;
+        unloading.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)} (Arrived ${getStatusDay(t)})\n`);
+        report += `\n`;
       }
-      report += `\n`;
 
       const ongoing = activeBrandTrucks.filter(t => getStat(t, 'ongoing'));
       if (ongoing.length > 0) {
@@ -358,40 +351,49 @@ bot.onText(/\/all/, async (msg) => {
           report += `\n`;
         }
       }
-      report += `============================\n`;
     });
 
     // --- SPECIAL STATUSES ---
     const getSpecials = (statusName) => trucks.filter(t => getStat(t, statusName));
 
     const parkedTrucks = getSpecials('parked');
+    report += `===========================\n`;
+    report += `PARKED (${parkedTrucks.length})\n`;
     if (parkedTrucks.length > 0) {
-      report += `PARKED (${parkedTrucks.length})\n`;
-      parkedTrucks.forEach(t => report += `${t.plate_no} = (${getStatusDay(t)})\n`);
-      report += `===========================\n`;
+      parkedTrucks.forEach(t => {
+        const note = t.note ? ` ${t.note.trim()}` : '';
+        report += `${t.plate_no} = (Arrived ${getStatusDay(t)})${note}\n`;
+      });
     }
+    report += `\n`;
 
     const garageTrucks = getSpecials('garage');
+    report += `===========================\n`;
+    report += `GARAGE (${garageTrucks.length})\n`;
     if (garageTrucks.length > 0) {
-      report += `GARAGE (${garageTrucks.length})\n`;
-      garageTrucks.forEach(t => report += `${t.plate_no} = (${getStatusDay(t)})\n`);
-      report += `===========================\n`;
+      garageTrucks.forEach(t => report += `${t.plate_no} = (Arrived ${getGarageDay(t)})\n`);
     }
+    report += `\n`;
 
     const nodeTrucks = trucks.filter(t => (t.status || '').toLowerCase().includes('node') || (t.status || '').toLowerCase().includes('no driver'));
+    report += `=============================\n`;
+    report += `Node / No Driver (${nodeTrucks.length})\n`;
     if (nodeTrucks.length > 0) {
-      report += `Node / No Driver (${nodeTrucks.length})\n`;
-      nodeTrucks.forEach(t => report += `${t.plate_no} = ${formatNote(t.note) || 'No Driver'}\n`);
-      report += `=============================\n`;
+      nodeTrucks.forEach(t => {
+        const label = t.note ? t.note.trim() : 'No Driver';
+        report += `${t.plate_no} = ${label}\n`;
+      });
     }
+    report += `\n`;
 
     const insuranceTrucks = getSpecials('insurance');
+    report += `=============================\n`;
+    report += `INSURANCE (${insuranceTrucks.length})\n`;
     if (insuranceTrucks.length > 0) {
-      report += `INSURANCE (${insuranceTrucks.length})\n`;
       insuranceTrucks.forEach(t => report += `${t.plate_no}\n`);
-      report += `=============================\n`;
     }
 
+    report += `\n=============================\n`;
     report += `Good Day`;
 
     // Split report if it exceeds Telegram's 4096 char limit
