@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "about": "About",
+    "services": "Services",
+    "fleet": "Fleet",
+    "contact": "Contact"
+  },
+  "hero": {
+    "badge": "23+ Years of Logistics Excellence",
+    "title_1": "Trusted & Faster",
+    "title_2": "Logistic Service",
+    "subtitle": "Cross-border and domestic shipments powered by modern digital systems, GPS tracking, and vehicle management — delivering safety and speed across Ethiopia and beyond.",
+    "cta_dashboard": "Go to Dashboard",
+    "cta_signin": "Sign In to Dashboard",
+    "cta_learn": "Learn More"
+  },
+  "services": {
+    "label": "Our Services",
+    "title_1": "End-to-End Logistics",
+    "title_2": "Solutions",
+    "subtitle": "From vehicle tracking to load management, we provide everything you need for efficient and reliable freight operations.",
+    "fleet_mgmt_title": "Fleet Management & Vehicle Tracking",
+    "fleet_mgmt_desc": "Track your vehicles in real time as drivers complete jobs. Tracking is available via GPS devices mounted on trucks, GPS signals from driver mobile phones, or both. Always know where your trucks have been, and see where they are headed.",
+    "cargo_title": "Full Visibility Into Cargo Lifecycle",
+    "cargo_desc": "Real time visibility into shipment progress from the moment a driver is assigned to the load through the moment the truck has arrived and unloaded. Get alerted immediately about any updates or delays, via our web and mobile apps.",
+    "vetted_title": "Vetted Vehicles & Drivers",
+    "vetted_desc": "We collect hundreds of data points on every job, providing deep insights into the reliability of our carriers and drivers, vetted for trustworthiness. Custom solutions available for high risk cargo.",
+    "loads_title": "Choose Loads That Work For You",
+    "loads_desc": "Use our load board to find and request loads on your preferred routes. Get notified when jobs are available on routes that you or your drivers prefer.",
+    "comms_title": "Streamlined Communication",
+    "comms_desc": "Provide updates on your job with the press of a button, a text message, or just by having your phone on! No need for constant calls to update progress."
+  },
+  "fleet": {
+    "label": "Our Fleet",
+    "title_1": "Our Fleet,",
+    "title_2": "Your Advantage",
+    "desc": "A growing fleet of modern vehicles strategically positioned across Ethiopia for maximum efficiency and minimal transit times. Every truck is GPS-enabled and maintained to the highest safety standards.",
+    "gps": "GPS Enabled",
+    "safety": "Safety Certified",
+    "monitoring": "24/7 Monitoring",
+    "badge": "Years on the Road"
+  },
+  "award": {
+    "title": "Award-Winning Service Provider",
+    "desc_1": "Recognized by industry leaders. Proud recipient of the",
+    "award_name": "\"Best Distributor of the Year\"",
+    "desc_2": "for the implementation of health and safety standards, awarded by",
+    "desc_3": "Diageo in 2018"
+  },
+  "cta": {
+    "title": "Ready to Streamline Your Fleet?",
+    "desc": "Join the modern logistics revolution. Access real-time tracking, intelligent reporting, and complete fleet visibility in one powerful dashboard."
+  },
+  "footer": {
+    "tagline": "Trusted logistics partner providing cross-border and domestic shipping services for over 23 years.",
+    "contact": "Contact",
+    "quicklinks": "Quick Links",
+    "about_us": "About Us",
+    "services": "Services",
+    "our_fleet": "Our Fleet",
+    "location": "Addis Ababa, Ethiopia",
+    "copyright": "All rights reserved.",
+    "designer": "Designed by Biruk Melaku — GS GPS Controller and Safety"
+  }
+}

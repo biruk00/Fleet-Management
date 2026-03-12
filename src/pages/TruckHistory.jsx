@@ -25,6 +25,7 @@ export default function TruckHistory() {
     if (plateFilter) {
       loadHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadHistory = async () => {

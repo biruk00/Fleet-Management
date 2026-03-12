@@ -169,14 +169,19 @@ export default function TrucksList() {
       !(t.note || '').toLowerCase().includes('galafi')
     );
 
-    const djLoadingAtDj = djActive.filter(t =>
-      getStat(t, 'loading') &&
+    const djOncomingEmpty = djActive.filter(t => 
+      getStat(t, 'oncoming') && 
+      (t.destination || '').toLowerCase() === 'djibouti' && 
+      !(t.note || '').toLowerCase().includes('galafi')
+    );
+
+    const djLoadingAtDj = djActive.filter(t => 
+      getStat(t, 'loading') && 
       (t.current_location || '').toLowerCase() === 'djibouti'
     );
 
-    const djOthers = djActive.filter(t =>
-      !djCrossed.includes(t) && !djOngoingEmpty.includes(t) && !djLoadingAtDj.includes(t)
-    );
+    // Fertlizer block (all loaded/unloading/ongoing elsewhere Djibouti trucks)
+    const djOthers = djActive.filter(t => !djCrossed.includes(t) && !djOngoingEmpty.includes(t) && !djOncomingEmpty.includes(t) && !djLoadingAtDj.includes(t));
 
     report += `DJIBOUTI (${djActive.length})\n`;
 
@@ -199,8 +204,25 @@ export default function TrucksList() {
     }
     report += `============================\n\n`;
 
+    if (djOncomingEmpty.length > 0) {
+      report += `ONCOMING EMPTY TRUCKS TO DJIBOUTI (${djOncomingEmpty.length})\n`;
+      djOncomingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
+      report += `============================\n`;
+      report += `\n`;
+    }
+
     if (djOthers.length > 0) {
       report += `FERTLIZER (${djOthers.length})\n`;
+
+      const djLoad = djOthers.filter(t => getStat(t, 'loading'));
+      if (djLoad.length > 0) {
+        const grouped = groupBy(djLoad, 'current_location');
+        for (const [loc, trks] of Object.entries(grouped)) {
+          report += `LOADING ${loc !== 'Unknown' && loc ? '@ ' + loc : ''}\n`;
+          trks.forEach(t => report += `${t.plate_no} ${formatNote(t.note)} (${getStatusDay(t)})\n`);
+        }
+        report += `\n`;
+      }
 
       const djUnload = djOthers.filter(t => getStat(t, 'unloading'));
       if (djUnload.length > 0) {
@@ -218,6 +240,19 @@ export default function TrucksList() {
         for (const [dest, trks] of Object.entries(grouped)) {
           report += `DJIBOUTI TO ${dest !== 'Unknown' ? dest : '?'}\n`;
           trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
+          report += `\n`;
+        }
+      }
+      const djOncoming = djOthers.filter(t => getStat(t, 'oncoming'));
+      if (djOncoming.length > 0) {
+        const grouped = groupBy(djOncoming, 'destination');
+        for (const [dest, trks] of Object.entries(grouped)) {
+          report += `ONCOMING TRUCKS TO ${dest !== 'Unknown' ? dest : '?'}\n`;
+          const onByFrom = groupBy(trks, 'from_location');
+          for (const [fromLoc, fTrks] of Object.entries(onByFrom)) {
+            report += `from ${fromLoc}\n`;
+            fTrks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(t.note)}\n`);
+          }
           report += `\n`;
         }
       }
@@ -358,6 +393,7 @@ export default function TrucksList() {
         if (s === 'loading' && (t.current_location || '').toLowerCase() === 'djibouti') return 'LOADING AT DJIBOUTI';
         if (dest === 'djibouti' && note.includes('galafi')) return 'Empty Trucks Crossed to DJIBOUTI';
         if (s === 'ongoing' && dest === 'djibouti') return 'ONGOING EMPTY TRUCKS TO DJIBOUTI';
+        if (s === 'oncoming' && dest === 'djibouti') return 'ONCOMING EMPTY TRUCKS TO DJIBOUTI';
         if (s === 'ongoing') return 'DJIBOUTI TO';
         if (s === 'oncoming') return 'ONCOMING TRUCKS TO';
       } else {

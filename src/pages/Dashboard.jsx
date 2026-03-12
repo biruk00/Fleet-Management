@@ -39,7 +39,8 @@ export default function Dashboard() {
     'Walia': 'border-amber-500',
     'BGI': 'border-purple-500',
     'Leshato': 'border-pink-500',
-    'Habesha': 'border-amber-500'
+    'Habesha': 'border-amber-500',
+    'Unilever': 'border-amber-500'
   };
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Dashboard() {
     { key: 'BGI', label: 'BGI', count: categoryCounts['BGI'] || 0 },
     { key: 'Leshato', label: 'LESHATO', count: categoryCounts['Leshato'] || 0 },
     { key: 'Habesha', label: 'HABESHA', count: categoryCounts['Habesha'] || 0 },
+    { key: 'Unilever', label: 'UNILEVER', count: categoryCounts['Unilever'] || 0 },
   ];
 
   if (loading) {

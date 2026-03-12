@@ -39,6 +39,7 @@ export default function TruckModal({ isOpen, onClose, plateNo, onSaved }) {
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, plateNo]);
 
   const fetchTruck = async () => {
