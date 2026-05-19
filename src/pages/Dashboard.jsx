@@ -22,25 +22,15 @@ export default function Dashboard() {
     'Insurance': <Shield className="w-8 h-8 text-purple-500" />
   };
 
-  const STATUS_COLORS = {
-    'Loading': 'text-blue-500',
-    'Unloading': 'text-emerald-500', 
-    'Ongoing': 'text-amber-500',
-    'Oncoming': 'text-purple-500',
-    'Parked': 'text-emerald-500',
-    'Garage': 'text-red-500',
-    'Node': 'text-slate-500',
-    'Insurance': 'text-purple-500'
-  };
-
-  const CHIP_COLORS = {
-    'all': 'border-orange-500 text-orange-500',
-    'Djibouti': 'border-blue-500',
-    'Walia': 'border-amber-500',
-    'BGI': 'border-purple-500',
-    'Leshato': 'border-pink-500',
-    'Habesha': 'border-amber-500',
-    'Unilever': 'border-amber-500'
+  const STATUS_THEMES = {
+    'Loading': { text: 'text-blue-500', bgIconLight: 'bg-blue-50', bgIconDark: 'dark:bg-blue-900/20', bgBar: 'bg-blue-500', glow: 'bg-blue-400/10' },
+    'Unloading': { text: 'text-emerald-500', bgIconLight: 'bg-emerald-50', bgIconDark: 'dark:bg-emerald-900/20', bgBar: 'bg-emerald-500', glow: 'bg-emerald-400/10' },
+    'Ongoing': { text: 'text-amber-500', bgIconLight: 'bg-amber-50', bgIconDark: 'dark:bg-amber-900/20', bgBar: 'bg-amber-500', glow: 'bg-amber-400/10' },
+    'Oncoming': { text: 'text-purple-500', bgIconLight: 'bg-purple-50', bgIconDark: 'dark:bg-purple-900/20', bgBar: 'bg-purple-500', glow: 'bg-purple-400/10' },
+    'Parked': { text: 'text-emerald-500', bgIconLight: 'bg-emerald-50', bgIconDark: 'dark:bg-emerald-900/20', bgBar: 'bg-emerald-500', glow: 'bg-emerald-400/10' },
+    'Garage': { text: 'text-red-500', bgIconLight: 'bg-red-50', bgIconDark: 'dark:bg-red-900/20', bgBar: 'bg-red-500', glow: 'bg-red-400/10' },
+    'Node': { text: 'text-slate-500', bgIconLight: 'bg-slate-50', bgIconDark: 'dark:bg-slate-900/20', bgBar: 'bg-slate-500', glow: 'bg-slate-400/10' },
+    'Insurance': { text: 'text-purple-500', bgIconLight: 'bg-purple-50', bgIconDark: 'dark:bg-purple-900/20', bgBar: 'bg-purple-500', glow: 'bg-purple-400/10' }
   };
 
   useEffect(() => {
@@ -169,29 +159,20 @@ export default function Dashboard() {
         <div className="flex overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory gap-4 px-2">
           {chipDefs.map(c => {
             const isActive = activeFilter === c.key;
-            // Generate a color theme per chip
-            let themeFrom = 'from-slate-100';
-            let themeTo = 'to-slate-200';
-            let textActive = 'text-slate-800';
-            let darkThemeFrom = 'dark:from-slate-800';
-            let darkThemeTo = 'dark:to-slate-900';
-            let darkTextActive = 'dark:text-white';
+            let chipTheme = {
+              bgLight: 'from-teal-400 to-teal-600',
+              bgDark: 'dark:from-teal-500 dark:to-teal-700',
+              textActive: 'text-white dark:text-white',
+              shadow: 'shadow-teal-500/30'
+            };
             
-             if (c.key === 'all') { themeFrom = 'from-orange-400'; themeTo = 'to-orange-600'; textActive = 'text-white'; darkThemeFrom = 'dark:from-orange-500'; darkThemeTo = 'dark:to-orange-700'; }
-            else if (c.key === 'Djibouti') { themeFrom = 'from-blue-400'; themeTo = 'to-blue-600'; textActive = 'text-white'; darkThemeFrom = 'dark:from-blue-500'; darkThemeTo = 'dark:to-blue-700'; }
-            else if (c.key === 'Walia') { themeFrom = 'from-amber-400'; themeTo = 'to-amber-500'; textActive = 'text-white'; darkThemeFrom = 'dark:from-amber-500'; darkThemeTo = 'dark:to-amber-600'; }
-            else if (c.key === 'BGI') { themeFrom = 'from-purple-400'; themeTo = 'to-purple-600'; textActive = 'text-white'; darkThemeFrom = 'dark:from-purple-500'; darkThemeTo = 'dark:to-purple-700'; }
-            else if (c.key === 'Leshato') { themeFrom = 'from-pink-400'; themeTo = 'to-pink-600'; textActive = 'text-white'; darkThemeFrom = 'dark:from-pink-500'; darkThemeTo = 'dark:to-pink-700'; }
-            else if (c.key === 'Habesha') { themeFrom = 'from-amber-500'; themeTo = 'to-amber-600'; textActive = 'text-white'; darkThemeFrom = 'dark:from-amber-600'; darkThemeTo = 'dark:to-amber-700'; }
-            else if (c.key === 'Unilever') { themeFrom = 'from-orange-400'; themeTo = 'to-orange-500'; textActive = 'text-white'; darkThemeFrom = 'dark:from-orange-500'; darkThemeTo = 'dark:to-orange-600'; }
-            else {
-              // Custom category fallback theme: Elegant Teal
-              themeFrom = 'from-teal-400';
-              themeTo = 'to-teal-600';
-              textActive = 'text-white';
-              darkThemeFrom = 'dark:from-teal-500';
-              darkThemeTo = 'dark:to-teal-700';
-            }
+            if (c.key === 'all') chipTheme = { bgLight: 'from-orange-400 to-orange-600', bgDark: 'dark:from-orange-500 dark:to-orange-700', textActive: 'text-white dark:text-white', shadow: 'shadow-orange-500/30' };
+            else if (c.key === 'Djibouti') chipTheme = { bgLight: 'from-blue-400 to-blue-600', bgDark: 'dark:from-blue-500 dark:to-blue-700', textActive: 'text-white dark:text-white', shadow: 'shadow-blue-500/30' };
+            else if (c.key === 'Walia') chipTheme = { bgLight: 'from-amber-400 to-amber-500', bgDark: 'dark:from-amber-500 dark:to-amber-600', textActive: 'text-white dark:text-white', shadow: 'shadow-amber-500/30' };
+            else if (c.key === 'BGI') chipTheme = { bgLight: 'from-purple-400 to-purple-600', bgDark: 'dark:from-purple-500 dark:to-purple-700', textActive: 'text-white dark:text-white', shadow: 'shadow-purple-500/30' };
+            else if (c.key === 'Leshato') chipTheme = { bgLight: 'from-pink-400 to-pink-600', bgDark: 'dark:from-pink-500 dark:to-pink-700', textActive: 'text-white dark:text-white', shadow: 'shadow-pink-500/30' };
+            else if (c.key === 'Habesha') chipTheme = { bgLight: 'from-amber-500 to-amber-600', bgDark: 'dark:from-amber-600 dark:to-amber-700', textActive: 'text-white dark:text-white', shadow: 'shadow-amber-500/30' };
+            else if (c.key === 'Unilever') chipTheme = { bgLight: 'from-orange-400 to-orange-500', bgDark: 'dark:from-orange-500 dark:to-orange-600', textActive: 'text-white dark:text-white', shadow: 'shadow-orange-500/30' };
             
             return (
               <button
@@ -200,7 +181,7 @@ export default function Dashboard() {
                 className={`
                   snap-start flex-none relative overflow-hidden rounded-2xl min-w-[140px] p-5 text-left transition-all duration-300
                   ${isActive 
-                    ? `bg-gradient-to-br ${themeFrom} ${themeTo} ${darkThemeFrom} ${darkThemeTo} shadow-lg shadow-${themeFrom.split('-')[1]}-500/30 -translate-y-1` 
+                    ? `bg-gradient-to-br ${chipTheme.bgLight} ${chipTheme.bgDark} shadow-lg ${chipTheme.shadow} -translate-y-1` 
                     : `glass-card hover:-translate-y-1 hover:bg-white dark:hover:bg-slate-800 border-transparent`}
                 `}
               >
@@ -211,7 +192,7 @@ export default function Dashboard() {
                   <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${isActive ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}`}>
                     {c.label}
                   </span>
-                  <span className={`text-3xl font-black ${isActive ? textActive + ' ' + darkTextActive : 'text-slate-800 dark:text-slate-200'}`}>
+                  <span className={`text-3xl font-black ${isActive ? chipTheme.textActive : 'text-slate-800 dark:text-slate-200'}`}>
                     {c.count}
                   </span>
                 </div>
@@ -240,9 +221,7 @@ export default function Dashboard() {
             // Progress Bar Logic
             const percentage = totalForFiltered > 0 ? Math.round((matchCount / totalForFiltered) * 100) : 0;
             
-            // Match color variable from tailwind mapping
-            const colorClassRaw = STATUS_COLORS[status]; // e.g. text-emerald-500
-            const colorName = colorClassRaw.split('-')[1]; // e.g. emerald
+            const theme = STATUS_THEMES[status] || STATUS_THEMES['Node'];
             
             return (
               <div 
@@ -256,10 +235,10 @@ export default function Dashboard() {
               >
                 {/* Visual Flair Header */}
                 <div className="flex justify-between items-start mb-6 relative z-10">
-                  <div className={`p-3 rounded-2xl bg-${colorName}-50 dark:bg-${colorName}-900/20 text-${colorName}-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+                  <div className={`p-3 rounded-2xl ${theme.bgIconLight} ${theme.bgIconDark} ${theme.text} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
                     {STATUS_ICONS[status]}
                   </div>
-                  <div className={`text-3xl font-black ${STATUS_COLORS[status]}`}>
+                  <div className={`text-3xl font-black ${theme.text}`}>
                     {matchCount}
                   </div>
                 </div>
@@ -276,14 +255,14 @@ export default function Dashboard() {
                   {/* Premium Progress Bar */}
                   <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full rounded-full transition-all duration-1000 ease-out bg-${colorName}-500`}
+                      className={`h-full rounded-full transition-all duration-1000 ease-out ${theme.bgBar}`}
                       style={{ width: `${Math.max(percentage, 2)}%` }} // At least show a sliver so it's visible
                     />
                   </div>
                 </div>
                 
                 {/* Background Glow on Hover */}
-                <div className={`absolute -bottom-10 -right-10 w-32 h-32 bg-${colorName}-400/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}></div>
+                <div className={`absolute -bottom-10 -right-10 w-32 h-32 ${theme.glow} rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}></div>
               </div>
             );
           })}
