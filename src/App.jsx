@@ -10,6 +10,7 @@ import TrucksList from './pages/TrucksList';
 import TruckHistory from './pages/TruckHistory';
 import UserManagement from './pages/UserManagement';
 import LiveMapPage from './pages/LiveMapPage';
+import DriversPage from './pages/DriversPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
               <Route path="/trucks" element={<TrucksList />} />
               <Route path="/map" element={<LiveMapPage />} />
               <Route path="/trucks/history/:plateNo" element={<TruckHistory />} />
+              <Route path="/drivers" element={<DriversPage />} />
               
               {/* Admin Only Routes (Modals used for Add/Edit now) */}
               <Route element={<ProtectedRoute requireAdmin={true} />}>

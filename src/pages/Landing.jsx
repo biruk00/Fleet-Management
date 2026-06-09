@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -207,7 +207,7 @@ function CinematicIntro({ onComplete }) {
       setTimeout(() => {
         onComplete();
       }, 1200); // Wait for sliding swipe transition to finish
-    }, 3800);
+    }, 2200); // Shortened from 3800ms for faster access
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -299,8 +299,9 @@ function CinematicIntro({ onComplete }) {
 }
 
 export default function Landing() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [stats, setStats] = useState({ total: 0, loading: 0, ongoing: 0, parked: 0 });
 
@@ -319,6 +320,13 @@ export default function Landing() {
   /* ── Video Player States ── */
   const videoRef = useRef(null);
   const [isMuted, setIsMuted] = useState(true);
+
+  /* ── Auto-redirect logged-in users straight to their app ── */
+  useEffect(() => {
+    if (user) {
+      navigate(isAdmin ? '/dashboard' : '/trucks', { replace: true });
+    }
+  }, [user, isAdmin, navigate]);
 
   useEffect(() => {
     fetchPublicStats();

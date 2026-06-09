@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Truck, Home, List, LogOut, Plus, LayoutGrid, Map as MapIcon } from 'lucide-react';
+import { Truck, Home, List, LogOut, Plus, LayoutGrid, Map as MapIcon, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TruckModal from './TruckModal';
 
@@ -19,11 +19,13 @@ export default function Layout() {
   const dateStr = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-  // Bottom tab items (mobile only)
-  const tabItems = [];
-  if (isAdmin) tabItems.push({ name: 'Dashboard', path: '/dashboard', icon: LayoutGrid });
-  tabItems.push({ name: 'Map', path: '/map', icon: MapIcon });
-  tabItems.push({ name: 'Trucks', path: '/trucks', icon: List });
+  // Bottom tab items — Dashboard visible to all authenticated users
+  const tabItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutGrid },
+    { name: 'Map', path: '/map', icon: MapIcon },
+    { name: 'Trucks', path: '/trucks', icon: List },
+    { name: 'Drivers', path: '/drivers', icon: Users },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans">
