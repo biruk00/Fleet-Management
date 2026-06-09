@@ -133,8 +133,18 @@ export default function TrucksList() {
     return text;
   };
 
-  // Returns "DD/Mon (X days)" for when a truck entered its current status
-  const getStatusDay = (t) => {
+  const getDelayThreshold = (t) => {
+    const status = (t.status || '').toLowerCase();
+    const category = (t.category || '').toLowerCase();
+
+    if (status === 'garage') return 10;
+    if (status === 'parked') return 5;
+    if (category === 'habesha') return 3;
+    return 3; // Default threshold for loading/unloading/etc.
+  };
+
+  // Returns detailed status day info including the difference in days and custom warning delay status
+  const getStatusDayInfo = (t) => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
 
@@ -170,11 +180,22 @@ export default function TrucksList() {
     const diffTime = date - arrivalDate;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // Standard diff
     
-    if (diffDays <= 0) {
-      return displayStr;
-    }
+    const formatted = diffDays <= 0 ? displayStr : `${displayStr} (${diffDays})`;
+    const threshold = getDelayThreshold(t);
+    const isDelayed = diffDays >= threshold;
 
-    return `${displayStr} (${diffDays})`;
+    return {
+      displayStr,
+      diffDays,
+      formatted,
+      isDelayed
+    };
+  };
+
+  // Returns "DD/Mon (X)" for when a truck entered its current status (with delay flag if warning is active)
+  const getStatusDay = (t) => {
+    const info = getStatusDayInfo(t);
+    return info.isDelayed ? `⚠️ ${info.formatted}` : info.formatted;
   };
 
   const handleDelete = async (id, plateNo) => {
@@ -958,12 +979,18 @@ export default function TrucksList() {
                     <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{truck.note}</span>
                   </div>
                 )}
-                {(truck.status || '').toLowerCase() === 'loading' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-16 shrink-0">Arrived</span>
-                    <span className="text-xs font-semibold text-orange-400 dark:text-orange-400">{getStatusDay(truck)}</span>
-                  </div>
-                )}
+                {['loading', 'unloading', 'parked', 'garage'].includes((truck.status || '').toLowerCase()) && (() => {
+                  const info = getStatusDayInfo(truck);
+                  const isDelayed = info.isDelayed;
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-16 shrink-0">Arrived</span>
+                      <span className={`text-xs font-semibold flex items-center gap-1 ${isDelayed ? 'text-red-500 dark:text-red-400 font-bold' : 'text-orange-400 dark:text-orange-400'}`}>
+                        {getStatusDay(truck)}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Card Footer: Actions */}
@@ -1040,11 +1067,15 @@ export default function TrucksList() {
                           {truck.from_location || '?'} &rarr; {truck.destination || '?'}
                         </span>
                       )}
-                      {(truck.status || '').toLowerCase() === 'loading' && (
-                        <span className="text-xs font-semibold text-orange-500 mt-1">
-                          Arrived {getStatusDay(truck)}
-                        </span>
-                      )}
+                      {['loading', 'unloading', 'parked', 'garage'].includes((truck.status || '').toLowerCase()) && (() => {
+                        const info = getStatusDayInfo(truck);
+                        const isDelayed = info.isDelayed;
+                        return (
+                          <span className={`text-xs font-semibold mt-1 flex items-center gap-1 ${isDelayed ? 'text-red-600 dark:text-red-400 font-bold' : 'text-orange-500'}`}>
+                            Arrived {getStatusDay(truck)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="p-4 text-center">
