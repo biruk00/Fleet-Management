@@ -11,6 +11,7 @@ import TruckModal from '../components/TruckModal';
 export default function TrucksList() {
   const { isAdmin } = useAuth();
   const [trucks, setTrucks] = useState([]);
+  const [historyRecords, setHistoryRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -29,19 +30,151 @@ export default function TrucksList() {
   const fetchTrucks = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('trucks')
-        .select('*')
-        // SORT BY PLATE NUMBER IN ASCENDING ORDER
-        .order('plate_no', { ascending: true }); 
-        
-      if (error) throw error;
-      setTrucks(data || []);
+      const [trucksRes, historyRes] = await Promise.all([
+        supabase
+          .from('trucks')
+          .select('*')
+          // SORT BY PLATE NUMBER IN ASCENDING ORDER
+          .order('plate_no', { ascending: true }),
+        supabase
+          .from('trucks_history')
+          .select('plate_no, status, changed_at')
+          .order('changed_at', { ascending: false })
+      ]);
+
+      if (trucksRes.error) throw trucksRes.error;
+      setTrucks(trucksRes.data || []);
+      if (!historyRes.error) setHistoryRecords(historyRes.data || []);
     } catch (err) {
       console.error('Error fetching trucks:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Parses arrival date from note if specified using various patterns:
+  // e.g. "6/Jun", "Jun-6", "25/5", "25", etc.
+  const parseArrivalDate = (t) => {
+    const noteText = (t.note || '').replace(/^\[.*?\]\s*/, '').trim();
+    if (!noteText) return null;
+
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+
+    const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+    let parsedDate = null;
+    let matchedSubstring = '';
+
+    // Pattern 1: DD/MMM or DD-MMM or DD MMM (e.g., 25/May, 25-May, 25 May)
+    const pattern1 = /\b(\d{1,2})\s*[\/\-]?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i;
+    // Pattern 2: MMM/DD or MMM-DD or MMM DD (e.g., May 25, May-25, May 25)
+    const pattern2 = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*[\/\-]?\s*(\d{1,2})\b/i;
+    // Pattern 3: DD/MM or DD-MM (e.g., 25/5, 25-5, 06/06)
+    const pattern3 = /\b(\d{1,2})[\/\-](\d{1,2})\b/;
+    // Pattern 4: just a single number between 1 and 31
+    const pattern4 = /\b(\d{1,2})\b/;
+
+    let m;
+    if ((m = noteText.match(pattern1))) {
+      const day = parseInt(m[1], 10);
+      const monthStr = m[2].toLowerCase();
+      const monthIdx = monthNames.indexOf(monthStr);
+      if (day >= 1 && day <= 31 && monthIdx !== -1) {
+        parsedDate = new Date(currentDate.getFullYear(), monthIdx, day);
+        matchedSubstring = m[0];
+      }
+    } else if ((m = noteText.match(pattern2))) {
+      const day = parseInt(m[2], 10);
+      const monthStr = m[1].toLowerCase();
+      const monthIdx = monthNames.indexOf(monthStr);
+      if (day >= 1 && day <= 31 && monthIdx !== -1) {
+        parsedDate = new Date(currentDate.getFullYear(), monthIdx, day);
+        matchedSubstring = m[0];
+      }
+    } else if ((m = noteText.match(pattern3))) {
+      const day = parseInt(m[1], 10);
+      const monthVal = parseInt(m[2], 10);
+      if (day >= 1 && day <= 31 && monthVal >= 1 && monthVal <= 12) {
+        parsedDate = new Date(currentDate.getFullYear(), monthVal - 1, day);
+        matchedSubstring = m[0];
+      }
+    } else if ((m = noteText.match(pattern4))) {
+      const day = parseInt(m[1], 10);
+      if (day >= 1 && day <= 31) {
+        parsedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        matchedSubstring = m[0];
+      }
+    }
+
+    if (parsedDate) {
+      parsedDate.setHours(0, 0, 0, 0);
+      // If parsed date is in the future relative to today, it is likely from the previous month/year
+      if (parsedDate > currentDate) {
+        const isOnlyDay = noteText.match(pattern4) && !noteText.match(pattern1) && !noteText.match(pattern2) && !noteText.match(pattern3);
+        if (isOnlyDay) {
+          parsedDate.setMonth(parsedDate.getMonth() - 1);
+        } else {
+          parsedDate.setFullYear(parsedDate.getFullYear() - 1);
+        }
+      }
+      return { date: parsedDate, matchedText: matchedSubstring };
+    }
+
+    return null;
+  };
+
+  const getActualNote = (t) => {
+    let text = (t.note || '').replace(/^\[.*?\]\s*/, '').trim();
+    const parsed = parseArrivalDate(t);
+    if (parsed && parsed.matchedText) {
+      text = text.replace(parsed.matchedText, '').replace(/\s+/g, ' ').trim();
+    }
+    return text;
+  };
+
+  // Returns "DD/Mon (X days)" for when a truck entered its current status
+  const getStatusDay = (t) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+
+    let arrivalDate = null;
+    let displayStr = '';
+
+    const parsed = parseArrivalDate(t);
+    if (parsed) {
+      arrivalDate = parsed.date;
+      const day = arrivalDate.getDate();
+      const mon = arrivalDate.toLocaleString('en-US', { month: 'short' });
+      displayStr = `${day}/${mon}`;
+    }
+
+    if (!arrivalDate) {
+      const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
+      let earliestStreakDate = null;
+      for (let i = 0; i < plateHistory.length; i++) {
+        if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
+          earliestStreakDate = plateHistory[i].changed_at;
+        } else {
+          break;
+        }
+      }
+      const d = earliestStreakDate ? new Date(earliestStreakDate) : date;
+      arrivalDate = new Date(d);
+      const day = d.getDate();
+      const mon = d.toLocaleString('en-US', { month: 'short' });
+      displayStr = `${day}/${mon}`;
+    }
+
+    arrivalDate.setHours(0, 0, 0, 0);
+    const diffTime = date - arrivalDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // Standard diff
+    
+    if (diffDays <= 0) {
+      return displayStr;
+    }
+
+    return `${displayStr} (${diffDays})`;
   };
 
   const handleDelete = async (id, plateNo) => {
@@ -102,51 +235,11 @@ export default function TrucksList() {
   const exportToTextReport = async () => {
     if (trucks.length === 0) return;
 
-    // 1. Fetch history to figure out real status change dates
-    let historyRecords = [];
-    try {
-      const { data } = await supabase
-        .from('trucks_history')
-        .select('plate_no, status, changed_at')
-        .order('changed_at', { ascending: false });
-      if (data) historyRecords = data;
-    } catch (err) {
-      console.error('Could not fetch history for dates:', err);
-    }
-
     const date = new Date();
     const dateString = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const dayOfMonth = date.getDate();
     const timeGreeting = date.getHours() < 12 ? 'Morning' : 'Afternoon';
     const timeDisplay = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-    // HELPER: Returns "DD/Mon" e.g. "8/Mar" for when the truck entered its current status
-    const getStatusDay = (t) => {
-      // If there is a number in the note, that number represents the arrival date (day of the month)
-      const cleanNoteText = (t.note || '').replace(/^\[.*?\]\s*/, '').trim();
-      const numMatch = cleanNoteText.match(/\b\d+\b/);
-      if (numMatch) {
-        const dayNum = parseInt(numMatch[0], 10);
-        if (dayNum >= 1 && dayNum <= 31) {
-          const mon = date.toLocaleString('en-US', { month: 'short' });
-          return `${dayNum}/${mon}`;
-        }
-      }
-
-      const plateHistory = historyRecords.filter(h => h.plate_no === t.plate_no);
-      let earliestStreakDate = null;
-      for (let i = 0; i < plateHistory.length; i++) {
-        if ((plateHistory[i].status || '').toLowerCase() === (t.status || '').toLowerCase()) {
-          earliestStreakDate = plateHistory[i].changed_at;
-        } else {
-          break;
-        }
-      }
-      const d = earliestStreakDate ? new Date(earliestStreakDate) : date;
-      const day = d.getDate();
-      const mon = d.toLocaleString('en-US', { month: 'short' });
-      return `${day}/${mon}`;
-    };
 
     const getCat = (t, cat) => (t.category || '').toLowerCase() === cat.toLowerCase();
     const getStat = (t, stat) => (t.status || '').toLowerCase() === stat.toLowerCase();
@@ -161,18 +254,6 @@ export default function TrucksList() {
       const match = (t.note || '').match(/^\[(.*?)\]/);
       return match ? match[1].trim() : 'Fertilizer';
     };
-    const getActualNote = (t) => {
-      let text = (t.note || '').replace(/^\[.*?\]\s*/, '').trim();
-      const numMatch = text.match(/\b\d+\b/);
-      if (numMatch) {
-        const dayNum = parseInt(numMatch[0], 10);
-        if (dayNum >= 1 && dayNum <= 31) {
-          text = text.replace(new RegExp(`\\b${numMatch[0]}\\b`), '').replace(/\s+/g, ' ').trim();
-        }
-      }
-      return text;
-    };
-
     const isInactiveStatus = (status) => {
       const s = (status || '').toLowerCase();
       return ['garage', 'parked', 'insurance'].includes(s) || s.includes('node') || s.includes('no driver');
@@ -307,7 +388,7 @@ export default function TrucksList() {
         const grouped = groupBy(loading, 'current_location');
         for (const [loc, trks] of Object.entries(grouped)) {
           report += `LOADING @ ${loc !== 'Unknown' && loc ? loc : '?'}\n`;
-          trks.forEach(t => report += `${t.plate_no}  \n`);
+          trks.forEach(t => report += `${t.plate_no}  (Arrived ${getStatusDay(t)})\n`);
         }
         report += `\n`;
       } else {
@@ -877,6 +958,12 @@ export default function TrucksList() {
                     <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{truck.note}</span>
                   </div>
                 )}
+                {(truck.status || '').toLowerCase() === 'loading' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-16 shrink-0">Arrived</span>
+                    <span className="text-xs font-semibold text-orange-400 dark:text-orange-400">{getStatusDay(truck)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Card Footer: Actions */}
@@ -951,6 +1038,11 @@ export default function TrucksList() {
                       {(truck.from_location || truck.destination) && (
                         <span className="text-slate-500 dark:text-slate-500 text-xs mt-0.5">
                           {truck.from_location || '?'} &rarr; {truck.destination || '?'}
+                        </span>
+                      )}
+                      {(truck.status || '').toLowerCase() === 'loading' && (
+                        <span className="text-xs font-semibold text-orange-500 mt-1">
+                          Arrived {getStatusDay(truck)}
                         </span>
                       )}
                     </div>
