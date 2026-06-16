@@ -162,6 +162,30 @@ export default function DriversPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const exportDrivers = () => {
+    const headers = ['Index', 'Name', 'Plate No', 'Trailer No', 'Phone'];
+    const rows = drivers.map((d, i) => {
+      const values = [
+        String(i + 1),
+        d.name || '',
+        d.plate_no ? "'" + d.plate_no : '',
+        d.trailer_no || '',
+        d.phone ? "'" + d.phone : ''
+      ];
+      return values.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+    });
+    const csvContent = [headers.map(h => '"' + h + '"').join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'drivers_export.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -224,14 +248,22 @@ export default function DriversPage() {
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">{drivers.length} drivers registered</p>
           </div>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => { setEditDriver(null); setModalOpen(true); }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+              onClick={exportDrivers}
+              className="flex items-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"
             >
-              <Plus className="h-4 w-4" /> Add Driver
+              Export Drivers
             </button>
-          )}
+            {isAdmin && (
+              <button
+                onClick={() => { setEditDriver(null); setModalOpen(true); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+              >
+                <Plus className="h-4 w-4" /> Add Driver
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stats row */}

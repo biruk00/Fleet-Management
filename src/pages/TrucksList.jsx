@@ -188,7 +188,8 @@ export default function TrucksList() {
       displayStr,
       diffDays,
       formatted,
-      isDelayed
+      isDelayed,
+      arrivalDate
     };
   };
 
@@ -320,18 +321,32 @@ export default function TrucksList() {
       report += `=============================\n\n`;
     }
 
-    report += `Empty Trucks Crossed to DJIBOUTI\n`;
-    report += `On ${dateString}(${djCrossed.length})\n`;
     if (djCrossed.length > 0) {
-      djCrossed.forEach(t => report += `${t.plate_no}\n`);
-    }
-    report += `=============================\n\n`;
+      report += `Empty Trucks Crossed to DJIBOUTI (${djCrossed.length})\n`;
+      const crossedByDate = groupBy(djCrossed, (t) => {
+        const info = getStatusDayInfo(t);
+        const d = info.arrivalDate;
+        if (d) {
+          const yy = d.getFullYear().toString().slice(-2);
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${dd}/${mm}/${yy}`;
+        }
+        return 'Unknown Date';
+      });
 
-    report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length})\n`;
-    if (djOngoingEmpty.length > 0) {
-      djOngoingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+      for (const [dateStr, trks] of Object.entries(crossedByDate)) {
+        report += `${dateStr} (${trks.length})\n`;
+        trks.forEach(t => report += `${t.plate_no}\n`);
+      }
+      report += `=============================\n\n`;
     }
-    report += `============================\n\n`;
+
+    if (djOngoingEmpty.length > 0) {
+      report += `ONGOING EMPTY TRUCKS TO DJIBOUTI (${djOngoingEmpty.length})\n`;
+      djOngoingEmpty.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+      report += `============================\n\n`;
+    }
 
     if (djOncomingEmpty.length > 0) {
       report += `ONCOMING EMPTY TRUCKS TO DJIBOUTI (${djOncomingEmpty.length})\n`;
@@ -425,25 +440,31 @@ export default function TrucksList() {
 
       const ongoing = activeBrandTrucks.filter(t => getStat(t, 'ongoing'));
       if (ongoing.length > 0) {
-        const primaryFrom = ongoing[0]?.from_location || 'ORIGIN';
-        report += `ONGOING TRUCKS FROM ${primaryFrom.toUpperCase()}\n\n`;
-        const onByDest = groupBy(ongoing, 'destination');
-        for (const [dest, trks] of Object.entries(onByDest)) {
-          report += `to ${dest}\n`;
-          trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
-          report += `\n`;
+        const onByFrom = groupBy(ongoing, 'from_location');
+        for (const [fromLoc, fromTrks] of Object.entries(onByFrom)) {
+          const fromLocDisplay = fromLoc !== 'Unknown' && fromLoc ? fromLoc : 'ORIGIN';
+          report += `ONGOING TRUCKS FROM ${fromLocDisplay.toUpperCase()}\n\n`;
+          const onByDest = groupBy(fromTrks, 'destination');
+          for (const [dest, trks] of Object.entries(onByDest)) {
+            report += `to ${dest}\n`;
+            trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+            report += `\n`;
+          }
         }
       }
 
       const oncoming = activeBrandTrucks.filter(t => getStat(t, 'oncoming'));
       if (oncoming.length > 0) {
-        const primaryDest = oncoming[0]?.destination || 'DESTINATION';
-        report += `ONCOMING TRUCKS TO ${primaryDest.toUpperCase()}\n\n`;
-        const onByFrom = groupBy(oncoming, 'from_location');
-        for (const [fromLoc, trks] of Object.entries(onByFrom)) {
-          report += `from ${fromLoc}\n`;
-          trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
-          report += `\n`;
+        const onByDest = groupBy(oncoming, 'destination');
+        for (const [dest, destTrks] of Object.entries(onByDest)) {
+          const destDisplay = dest !== 'Unknown' && dest ? dest : 'DESTINATION';
+          report += `ONCOMING TRUCKS TO ${destDisplay.toUpperCase()}\n\n`;
+          const onByFrom = groupBy(destTrks, 'from_location');
+          for (const [fromLoc, trks] of Object.entries(onByFrom)) {
+            report += `from ${fromLoc}\n`;
+            trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+            report += `\n`;
+          }
         }
       }
     });
@@ -531,8 +552,14 @@ export default function TrucksList() {
         if (s === 'ongoing') return 'DJIBOUTI TO';
         if (s === 'oncoming') return 'ONCOMING TRUCKS TO';
       } else {
-        if (s === 'ongoing') return 'ONGOING TRUCKS FROM';
-        if (s === 'oncoming') return 'ONCOMING TRUCKS TO';
+        if (s === 'ongoing') {
+          const fromLoc = t.from_location || 'ORIGIN';
+          return `ONGOING TRUCKS FROM ${fromLoc.toUpperCase()}`;
+        }
+        if (s === 'oncoming') {
+          const destLoc = t.destination || 'DESTINATION';
+          return `ONCOMING TRUCKS TO ${destLoc.toUpperCase()}`;
+        }
       }
 
       if (s === 'loading') return 'LOADING';
@@ -979,12 +1006,13 @@ export default function TrucksList() {
                     <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{truck.note}</span>
                   </div>
                 )}
-                {['loading', 'unloading', 'parked', 'garage'].includes((truck.status || '').toLowerCase()) && (() => {
+                {['loading', 'unloading', 'parked', 'garage', 'ongoing', 'oncoming'].includes((truck.status || '').toLowerCase()) && (() => {
                   const info = getStatusDayInfo(truck);
                   const isDelayed = info.isDelayed;
+                  const prefix = ['ongoing', 'oncoming'].includes((truck.status || '').toLowerCase()) ? 'In Road' : 'Arrived';
                   return (
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-16 shrink-0">Arrived</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-16 shrink-0">{prefix}</span>
                       <span className={`text-xs font-semibold flex items-center gap-1 ${isDelayed ? 'text-red-500 dark:text-red-400 font-bold' : 'text-orange-400 dark:text-orange-400'}`}>
                         {getStatusDay(truck)}
                       </span>
@@ -1067,12 +1095,13 @@ export default function TrucksList() {
                           {truck.from_location || '?'} &rarr; {truck.destination || '?'}
                         </span>
                       )}
-                      {['loading', 'unloading', 'parked', 'garage'].includes((truck.status || '').toLowerCase()) && (() => {
+                      {['loading', 'unloading', 'parked', 'garage', 'ongoing', 'oncoming'].includes((truck.status || '').toLowerCase()) && (() => {
                         const info = getStatusDayInfo(truck);
                         const isDelayed = info.isDelayed;
+                        const prefix = ['ongoing', 'oncoming'].includes((truck.status || '').toLowerCase()) ? 'In Road' : 'Arrived';
                         return (
                           <span className={`text-xs font-semibold mt-1 flex items-center gap-1 ${isDelayed ? 'text-red-600 dark:text-red-400 font-bold' : 'text-orange-500'}`}>
-                            Arrived {getStatusDay(truck)}
+                            {prefix} {getStatusDay(truck)}
                           </span>
                         );
                       })()}

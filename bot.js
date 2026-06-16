@@ -350,25 +350,31 @@ bot.onText(/\/all/, async (msg) => {
 
       const ongoing = activeBrandTrucks.filter(t => getStat(t, 'ongoing'));
       if (ongoing.length > 0) {
-        const primaryFrom = ongoing[0]?.from_location || 'ORIGIN';
-        report += `ONGOING TRUCKS FROM ${primaryFrom.toUpperCase()}\n\n`;
-        const onByDest = groupBy(ongoing, 'destination');
-        for (const [dest, trks] of Object.entries(onByDest)) {
-          report += `to ${dest}\n`;
-          trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
-          report += `\n`;
+        const onByFrom = groupBy(ongoing, 'from_location');
+        for (const [fromLoc, fromTrks] of Object.entries(onByFrom)) {
+          const fromLocDisplay = fromLoc !== 'Unknown' && fromLoc ? fromLoc : 'ORIGIN';
+          report += `ONGOING TRUCKS FROM ${fromLocDisplay.toUpperCase()}\n\n`;
+          const onByDest = groupBy(fromTrks, 'destination');
+          for (const [dest, trks] of Object.entries(onByDest)) {
+            report += `to ${dest}\n`;
+            trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+            report += `\n`;
+          }
         }
       }
 
       const oncoming = activeBrandTrucks.filter(t => getStat(t, 'oncoming'));
       if (oncoming.length > 0) {
-        const primaryDest = oncoming[0]?.destination || 'DESTINATION';
-        report += `ONCOMING TRUCKS TO ${primaryDest.toUpperCase()}\n\n`;
-        const onByFrom = groupBy(oncoming, 'from_location');
-        for (const [fromLoc, trks] of Object.entries(onByFrom)) {
-          report += `from ${fromLoc}\n`;
-          trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
-          report += `\n`;
+        const onByDest = groupBy(oncoming, 'destination');
+        for (const [dest, destTrks] of Object.entries(onByDest)) {
+          const destDisplay = dest !== 'Unknown' && dest ? dest : 'DESTINATION';
+          report += `ONCOMING TRUCKS TO ${destDisplay.toUpperCase()}\n\n`;
+          const onByFrom = groupBy(destTrks, 'from_location');
+          for (const [fromLoc, trks] of Object.entries(onByFrom)) {
+            report += `from ${fromLoc}\n`;
+            trks.forEach(t => report += `${t.plate_no} ==> ${t.current_location || '?'}${formatNote(getActualNote(t))}\n`);
+            report += `\n`;
+          }
         }
       }
     });
